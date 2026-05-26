@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum EmailProvider {
+  GMAIL
+  OUTLOOK
+  IMAP_SMTP
+}
+
+enum EmailPriority {
+  URGENT
+  HIGH
+  NORMAL
+  LOW
+}
+
+enum EmailSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum AiGenerationType {
+  DRAFT
+  REPLY
+  SUMMARY
+  CLASSIFICATION
+  SENTIMENT
+  PRIORITY
+  MEETING_EXTRACTION
+  PHISHING_CHECK
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  name          String
+  avatarUrl     String?
+  passwordHash  String?
+  locale        String        @default("en")
+  timezone      String        @default("Asia/Kolkata")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  memberships   Membership[]
+  sentEmails    Email[]       @relation("SentEmails")
+  generations   AiGeneration[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  usageEvents   UsageEvent[]
+}
+
+model Organization {
+  id             String         @id @default(cuid())
+  name           String
+  slug           String         @unique
+  plan           String         @default("free")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  workspaces     Workspace[]
+  memberships    Membership[]
+  subscription   Subscription?
+  auditLogs      AuditLog[]
+  usageEvents    UsageEvent[]
+  featureFlags   FeatureFlag[]
+}
+
+model Workspace {
+  id             String        @id @default(cuid())
+  organizationId String
+  name           String
+  slug           String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  emailAccounts  EmailAccount[]
+  threads        EmailThread[]
+  automations    WorkflowAutomation[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role         @default(MEMBER)
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+}
+
+model EmailAccount {
+  id              String        @id @default(cuid())
+  workspaceId     String
+  provider        EmailProvider
+  email           String
+  displayName     String?
+  accessTokenEnc  String?
+  refreshTokenEnc String?
+  syncCursor      String?
+  connectedAt     DateTime      @default(now())
+  lastSyncedAt    DateTime?
+  workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  emails          Email[]
+
+  @@unique([workspaceId, email])
+  @@index([provider])
+}
+
+model EmailThread {
+  id          String      @id @default(cuid())
+  workspaceId String
+  subject     String
+  externalId  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  emails      Email[]
+
+  @@index([workspaceId, updatedAt])
+}
+
+model Email {
+  id             String          @id @default(cuid())
+  threadId       String
+  accountId      String
+  senderUserId   String?
+  externalId     String?
+  fromName       String
+  fromEmail      String
+  to             Json
+  cc             Json?
+  bcc            Json?
+  subject        String
+  preview        String
+  bodyText       String
+  bodyHtml       String?
+  labels         String[]        @default([])
+  priority       EmailPriority   @default(NORMAL)
+  sentiment      EmailSentiment  @default(NEUTRAL)
+  aiSummary      String?
+  aiActions      String[]        @default([])
+  isRead         Boolean         @default(false)
+  isStarred      Boolean         @default(false)
+  isArchived     Boolean         @default(false)
+  isPhishingRisk Boolean         @default(false)
+  receivedAt     DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  thread         EmailThread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  account        EmailAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  senderUser     User?           @relation("SentEmails", fields: [senderUserId], references: [id])
+  attachments    Attachment[]
+  generations    AiGeneration[]
+
+  @@index([threadId])
+  @@index([accountId, receivedAt])
+  @@index([priority, receivedAt])
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  emailId     String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  storageKey  String
+  previewUrl  String?
+  createdAt   DateTime @default(now())
+  email       Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+}
+
+model AiGeneration {
+  id          String           @id @default(cuid())
+  userId      String
+  emailId     String?
+  type        AiGenerationType
+  model       String
+  prompt      String
+  output      String
+  tokensIn    Int              @default(0)
+  tokensOut   Int              @default(0)
+  latencyMs   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email       Email?           @relation(fields: [emailId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+model AiStyleMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  tone      String
+  examples  Json
+  summary   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, tone])
+}
+
+model WorkflowAutomation {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  trigger     Json
+  actions     Json
+  enabled     Boolean   @default(true)
+  runCount    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, enabled])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  organizationId        String             @unique
+  stripeCustomerId      String?            @unique
+  stripeSubscriptionId  String?            @unique
+  status                SubscriptionStatus @default(TRIALING)
+  plan                  String             @default("free")
+  currentPeriodEnd      DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  organization          Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorUserId    String?
+  action         String
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor          User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([action])
+}
+
+model UsageEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String?
+  key            String
+  quantity       Int          @default(1)
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, key, createdAt])
+}
+
+model Integration {
+  id             String   @id @default(cuid())
+  organizationId String
+  provider       String
+  status         String   @default("disconnected")
+  config         Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, provider])
+}
+
+model FeatureFlag {
+  id             String       @id @default(cuid())
+  organizationId String
+  key            String
+  enabled        Boolean      @default(false)
+  config         Json?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+}

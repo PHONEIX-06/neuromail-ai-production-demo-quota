@@ -1,0 +1,38 @@
+{
+  "family": "neuromail-worker",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/neuromail-ecs-task-role",
+  "containerDefinitions": [
+    {
+      "name": "neuromail-worker",
+      "image": "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/neuromail-worker:latest",
+      "essential": true,
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "AWS_REGION", "value": "<AWS_REGION>" },
+        { "name": "GEMINI_MODEL", "value": "gemini-2.5-flash" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:/neuromail/DATABASE_URL" },
+        { "name": "REDIS_URL", "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:/neuromail/REDIS_URL" },
+        { "name": "JWT_SECRET", "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:/neuromail/JWT_SECRET" },
+        { "name": "GEMINI_API_KEY", "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:/neuromail/GEMINI_API_KEY" },
+        { "name": "AWS_S3_BUCKET", "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:/neuromail/AWS_S3_BUCKET" },
+        { "name": "UPSTASH_REDIS_REST_URL", "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:/neuromail/UPSTASH_REDIS_REST_URL" },
+        { "name": "UPSTASH_REDIS_REST_TOKEN", "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:/neuromail/UPSTASH_REDIS_REST_TOKEN" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/neuromail-worker",
+          "awslogs-region": "<AWS_REGION>",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
