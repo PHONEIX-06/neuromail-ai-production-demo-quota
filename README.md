@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # NeuroMail AI
 
 NeuroMail AI is a production-grade AI SaaS email platform foundation for teams and professionals. It combines an enterprise dashboard, AI email assistance, workflow automation, realtime updates, PostgreSQL persistence, Redis queues, and a deployment-ready service architecture.
@@ -108,3 +109,6 @@ npx prisma generate
 npx tsc --noEmit
 npm run build
 ```
+=======
+# neuromail-ai-production-demo-quota
+>>>>>>> 1588cd9a112bd16a853b9effcc1a1acd6359c162
