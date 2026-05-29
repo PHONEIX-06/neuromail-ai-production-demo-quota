@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # NeuroMail AI
 
 NeuroMail AI is a production-grade AI SaaS email platform foundation for teams and professionals. It combines an enterprise dashboard, AI email assistance, workflow automation, realtime updates, PostgreSQL persistence, Redis queues, and a deployment-ready service architecture.
@@ -84,7 +83,7 @@ AWS_S3_BUCKET=
 5. Add S3 attachment upload and preview.
 6. Add Stripe checkout, billing portal, and webhook handling.
 7. Add pgvector embeddings and semantic search.
-8. Add Next.js 15 App Router frontend migration.
+8. Add Next.js 15 App Router frontend migration when you are ready to move from the current TanStack UI.
 
 ## AWS Resume Deployment
 
@@ -109,6 +108,3 @@ npx prisma generate
 npx tsc --noEmit
 npm run build
 ```
-=======
-# neuromail-ai-production-demo-quota
->>>>>>> 1588cd9a112bd16a853b9effcc1a1acd6359c162
