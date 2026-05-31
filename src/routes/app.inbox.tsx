@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { type ComponentType, type SVGProps, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Star, Reply, Forward, Archive, Trash2, Sparkles, Bot, Paperclip,
@@ -26,7 +26,9 @@ function InboxPage() {
     apiGet<Email[]>("/api/emails", loadStoredEmails()).then((next) => {
       setItems(next);
       saveStoredEmails(next);
-      if (!next.some((email) => email.id === selectedId)) setSelectedId(next[0]?.id ?? "");
+      setSelectedId((currentSelectedId) => currentSelectedId && next.some((email) => email.id === currentSelectedId)
+        ? currentSelectedId
+        : next[0]?.id ?? "");
     });
     getSendQuota().then(setQuota);
   }, []);
@@ -38,13 +40,13 @@ function InboxPage() {
   const filters = ["All", "Urgent", "Sales", "Internal", "Updates"];
   const list = useMemo(() => filter === "All"
     ? items
-    : filter === "Urgent" ? items.filter(e => e.priority === "urgent")
-    : items.filter(e => e.category === filter), [filter, items]);
+    : filter === "Urgent" ? items.filter((e) => e.priority === "urgent")
+    : items.filter((e) => e.category === filter), [filter, items]);
   const selected = items.find((email) => email.id === selectedId) ?? list[0] ?? items[0] ?? seedEmails[0];
 
   useEffect(() => {
     setReplyText(`Hi ${selected.from.name.split(" ")[0]},\n\nThanks for the context. I will take a look and follow up with the next step shortly.\n\nBest,\nAlex`);
-  }, [selected.id]);
+  }, [selected.id, selected.from.name]);
 
   async function updateEmail(id: string, patch: Partial<Email>) {
     setItems((current) => current.map((email) => email.id === id ? { ...email, ...patch } : email));
@@ -148,10 +150,10 @@ function InboxPage() {
         <div className="flex-1 overflow-auto scrollbar-thin">
           {list.map(e => (
             <button
-              key={e.id}
-              onClick={() => {
-                setSelectedId(e.id);
-                if (e.unread) updateEmail(e.id, { unread: false });
+             key={e.id}
+             onClick={() => {
+               setSelectedId(e.id);
+              if (e.unread) updateEmail(e.id, { unread: false });
               }}
               className={`group flex w-full gap-3 border-b border-border/40 px-4 py-3.5 text-left transition ${
                 selected.id === e.id ? "bg-surface-elevated/80" : "hover:bg-surface-elevated/40"
@@ -192,7 +194,7 @@ function InboxPage() {
             <div className="ml-auto flex items-center gap-2">
               <ToolBtn icon={Star} label={selected.starred ? "Unstar" : "Star"} onClick={() => updateEmail(selected.id, { starred: !selected.starred })} />
               <ToolBtn icon={Calendar} label="Snooze" />
-              <ToolBtn icon={MoreHorizontal} />
+              <ToolBtn icon={MoreHorizontal} label="More" />
             </div>
           </div>
 
@@ -214,7 +216,7 @@ function InboxPage() {
                 </div>
                 <p className="text-sm">{selected.aiSummary}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {selected.aiActions.map(a => (
+                  {(selected.aiActions ?? []).map(a => (
                     <button key={a} onClick={() => setReplyText(`${replyText}\n\nNext action: ${a}`)} className="rounded-lg border border-brand/30 bg-background/50 px-2.5 py-1 text-xs hover:bg-brand/10 transition">
                       {a}
                     </button>
@@ -242,7 +244,7 @@ function InboxPage() {
 
               {selected.attachments && (
                 <div className="mt-6 flex flex-wrap gap-2">
-                  {selected.attachments.map(a => (
+                  {(selected.attachments ?? []).map(a => (
                     <div key={a.name} className="flex items-center gap-2 rounded-lg glass px-3 py-2 text-sm">
                       <Paperclip className="h-3.5 w-3.5 text-brand" /> {a.name}
                       <span className="text-xs text-muted-foreground">{a.size}</span>
@@ -267,7 +269,7 @@ function InboxPage() {
                     ))}
                   </div>
                   <button disabled={busy} onClick={sendReply} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3.5 py-2 text-sm font-medium text-brand-foreground shadow-glow disabled:opacity-60">
-                    <Reply className="h-3.5 w-3.5" /> {busy ? "Generating..." : "Send"}
+                    <Reply className="h-3.5 w-3.5" /> {busy ? "Working..." : "Send"}
                   </button>
                 </div>
               </div>
@@ -279,7 +281,7 @@ function InboxPage() {
   );
 }
 
-function ToolBtn({ icon: Icon, label, onClick }: { icon: any; label?: string; onClick?: () => void }) {
+function ToolBtn({ icon: Icon, label, onClick }: { icon: ComponentType<SVGProps<SVGSVGElement>>; label?: string; onClick?: () => void }) {
   return (
     <button onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition hover:bg-surface-elevated hover:text-foreground">
       <Icon className="h-4 w-4" /> {label}
